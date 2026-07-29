@@ -1,0 +1,9 @@
+node_modules/
+dist/
+android/app/build/
+ios/App/build/
+*.log
+.env
+.DS_Store
+*.local
+server/data/
