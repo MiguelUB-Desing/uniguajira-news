@@ -1,0 +1,19 @@
+# CONCLUSIONES
+
+El objetivo general del proyecto, desarrollar una aplicación móvil multiplataforma para la centralización y difusión de las noticias institucionales de la Universidad de La Guajira, se cumplió. La aplicación funciona sobre el feed real del portal, clasifica el contenido por categorías, permite buscar y filtra los temas de interés, y su empaquetado móvil queda listo para distribución en plataformas Android e iOS. Lo esencial no fue construir una aplicación más, sino construir la que el contexto demandaba: liviana, organizada y resistente a una conexión inestable.
+
+En relación con los objetivos específicos, el diagnóstico permitió estructurar un Product Backlog de cinco historias que reflejó necesidades reales de los usuarios de la Sede Maicao, y no un listado de funciones asumido de antemano. La arquitectura diseñada, organizada bajo el patrón MVC con un módulo de extracción y una base de datos de caché, se mantuvo intacta durante toda la implementación, lo que habla de un diseño proporcional al problema. La construcción siguió los cinco Sprints previstos y cada uno entregó un incremento funcional. La validación, por último, mostró que la aplicación reduce drásticamente el consumo de datos frente al acceso directo al portal y obtiene una puntuación de usabilidad aceptable en la escala SUS.
+
+El resultado de fondo es una evidencia simple pero valiosa: la comunidad académica de la Sede Maicao no deja de consultar la información institucional por desinterés, sino porque el canal disponible la hace costosa en datos y lenta. Cuando se le ofrece un canal propio, cómodo y de bajo consumo, lo adopta y lo valora. Ese hallazgo sostiene la pertinencia de este tipo de desarrollos en contextos de conectividad limitada.
+
+La justificación práctica del proyecto también se cumplió en términos cuantitativos: la comparación de tráfico mostró una reducción superior al 90% en el peso transferido al cargar el feed y las noticias individuales, porque la aplicación sirve los datos desde el caché local. La cifra exacta variará con el tiempo, según evolucione el portal, pero la ventaja estructural de la solución no depende de esas variaciones.
+
+# RECOMENDACIONES
+
+A la Universidad de La Guajira se recomienda considerar la aplicación como un canal oficial complementario al portal, con la distribución de la versión Android en la comunidad de la Sede Maicao y, posteriormente, en las demás sedes. Para sostener el servicio fuera del entorno académico se requiere un servidor público con el proxy en operación continua y una política clara de actualización del caché.
+
+Al equipo de desarrollo se le recomienda ampliar la muestra de validación y prolongar la evaluación en uso libre, no solo en sesiones guiadas, para confirmar los indicadores con más bases. La medición del consumo debe repetirse tras cada cambio importante en el portal, porque la estructura del sitio evoluciona y con ella los pesos por carga.
+
+Como líneas de trabajo futuro se sugieren, en primer lugar, las notificaciones push para alertar a los usuarios cuando se publique contenido de su categoría de interés; en segundo lugar, la sincronización inteligente de imágenes para descargas selectivas según la calidad de la conexión; y en tercer lugar, un panel administrativo que dependa menos de la base de datos directa. Estas mejoras no cambian la arquitectura, la aprovechan.
+
+Finalmente, se recomienda documentar y compartir la experiencia de desarrollo en la comunidad académica, porque un canal móvil alimentado por un proxy con caché demostró ser una alternativa viable y de bajo costo para regiones con restricciones de conectividad, y esa receta es reproducible en otras instituciones del departamento.

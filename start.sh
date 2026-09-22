@@ -2,12 +2,17 @@
 echo "Iniciando UniGuajira News..."
 echo "1234" | sudo -S mariadbd-safe --skip-grant-tables 2>/dev/null &
 
-cd /home/miguel/proyecto_de_grado/server
+ROOT=/home/miguel/uniguajira-news
+export PATH="$HOME/.local/node22/bin:$PATH"
+
+echo "1234" | sudo -S mariadbd-safe --skip-grant-tables 2>/dev/null &
+
+cd $ROOT/server
 node src/index.js &
 SERVER_PID=$!
 echo "Backend PID: $SERVER_PID"
 
-cd /home/miguel/proyecto_de_grado/app
+cd $ROOT/app
 npx vite --host &
 FRONTEND_PID=$!
 echo "Frontend PID: $FRONTEND_PID"

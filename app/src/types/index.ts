@@ -21,7 +21,7 @@ export interface User {
 export type ThemeMode = 'oscuro' | 'atardecer' | 'amanecer' | 'claro';
 
 export interface NewsResponse {
-  source: 'cache' | 'scraped';
+  source: string;
   data: NewsItem[];
   count?: number;
 }

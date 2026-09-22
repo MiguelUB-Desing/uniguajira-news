@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export PATH="$HOME/.local/node22/bin:$PATH"
+
 echo "==========================================="
 echo "  UniGuajira News - Build & Deploy"
 echo "==========================================="

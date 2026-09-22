@@ -9,7 +9,7 @@ export async function getCachedNews(category = null, limit = 50) {
       query += ' WHERE category = ?';
       params.push(category);
     }
-    query += ' ORDER BY published_at DESC LIMIT ?';
+    query += ' ORDER BY COALESCE(published_at, created_at) DESC LIMIT ?';
     params.push(parseInt(limit));
     const rows = await conn.query(query, params);
     return rows.map(r => ({ ...r, id: Number(r.id) }));
@@ -30,8 +30,10 @@ export async function cacheNews(newsList) {
            ON DUPLICATE KEY UPDATE
              title = VALUES(title),
              description = VALUES(description),
+             content = VALUES(content),
              image_url = VALUES(image_url),
              category = VALUES(category),
+             published_at = VALUES(published_at),
              updated_at = NOW()`,
           [item.title, item.description, item.content || null, item.source_url, item.image_url, item.category, item.published_at]
         );
@@ -65,6 +67,22 @@ export async function updateScrapeTimestamp() {
   const conn = await pool.getConnection();
   try {
     await conn.query('UPDATE cache_control SET last_scrape = NOW() WHERE id = 1');
+  } finally {
+    conn.release();
+  }
+}
+
+export async function incrementRequests(today) {
+  const conn = await pool.getConnection();
+  try {
+    await conn.query(
+      `INSERT INTO cache_control (id, requests_today, last_request_date)
+       VALUES (1, 1, ?)
+       ON DUPLICATE KEY UPDATE
+         requests_today = IF(last_request_date = ?, requests_today + 1, 1),
+         last_request_date = ?`,
+      [today, today, today]
+    );
   } finally {
     conn.release();
   }

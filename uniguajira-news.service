@@ -1,13 +1,12 @@
 [Unit]
 Description=UniGuajira News - Servidor Proxy y App Móvil
-After=network.target mariadb.service
-Wants=mariadb.service
+After=network.target
 
 [Service]
 Type=simple
 User=miguel
-WorkingDirectory=/home/miguel/proyecto_de_grado/server
-ExecStart=/usr/bin/node /home/miguel/proyecto_de_grado/server/src/index.js
+WorkingDirectory=/home/miguel/uniguajira-news/server
+ExecStart=/home/miguel/.local/node22/bin/node /home/miguel/uniguajira-news/server/src/index.js
 Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
@@ -15,8 +14,9 @@ Environment=PORT=3000
 Environment=DB_HOST=localhost
 Environment=DB_PORT=3306
 Environment=DB_USER=root
-Environment=DB_PASSWORD=uniguajira2026
+Environment=DB_PASSWORD=
 Environment=DB_NAME=uniguajira_news
+Environment=CORS_ORIGIN=*
 
 [Install]
 WantedBy=multi-user.target

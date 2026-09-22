@@ -14,18 +14,20 @@ App multiplataforma (Web + Android/iOS) para acceso optimizado a noticias de la 
 
 ## Desarrollo
 
+Requiere **Node.js 20.19 o superior**. Las versiones actuales de Vite, Cheerio y MariaDB del proyecto no son compatibles con Node 18.
+
 ```bash
-# 1. Iniciar MariaDB
+# 1. Iniciar MariaDB (auth deshabilitada para desarrollo)
 echo 1234 | sudo -S mariadbd-safe --skip-grant-tables &
 
 # 2. Crear base de datos
-echo 1234 | sudo -S mariadb -u root -puniguajira2026 uniguajira_news < database/schema.sql
+mariadb -u root -h 127.0.0.1 < database/schema.sql
 
 # 3. Backend (puerto 3000)
-cd server && npm start
+cd server && cp .env.example .env && npm install && npm start
 
 # 4. Frontend (puerto 5173)
-cd app && npm run dev
+cd app && npm install && npm run dev
 ```
 
 ---
@@ -36,8 +38,8 @@ cd app && npm run dev
 
 #### 1. Requisitos del servidor
 ```bash
-# Ubuntu/Debian
-sudo apt update && sudo apt install -y nodejs npm mariadb-server
+# Ubuntu/Debian: instala Node.js 20.19+ desde su repositorio oficial o nvm.
+sudo apt update && sudo apt install -y mariadb-server
 sudo systemctl start mariadb && sudo systemctl enable mariadb
 ```
 
@@ -139,12 +141,13 @@ npx cap open android
 
 | Método | Ruta | Descripción |
 |--------|------|-------------|
-| GET | `/api/health` | Health check |
+| GET | `/api/health` | Health check (incluye estado de la BD) |
 | GET | `/api/news?category=X&limit=N` | Noticias cacheadas |
 | POST | `/api/news/refresh` | Forzar scrapeo y refrescar caché |
 | GET | `/api/news/categories` | Listar categorías |
-| POST | `/api/auth/login` | Iniciar sesión |
-| POST | `/api/auth/register` | Registrarse |
+| POST | `/api/auth/login` | Iniciar sesión (devuelve JWT) |
+| POST | `/api/auth/register` | Registrarse (devuelve JWT) |
+| GET | `/api/auth/me` | Perfil del usuario (requiere `Authorization: Bearer <token>`) |
 
 ---
 
@@ -159,7 +162,14 @@ npx cap open android
 | `DB_USER` | `root` | Usuario BD |
 | `DB_PASSWORD` | `` | Contraseña BD |
 | `DB_NAME` | `uniguajira_news` | Nombre BD |
+| `JWT_SECRET` | *(requerido)* | Secreto para firmar tokens (genera uno con `openssl rand -hex 32`) |
 | `CORS_ORIGIN` | `*` | Origen permitido CORS |
+| `SCRAPER_POSTS_PER_PAGE` | `50` | Noticias solicitadas por página a la API de WordPress (máximo 100) |
+| `SCRAPER_MAX_PAGES` | `2` | Páginas de noticias recientes a guardar; aumenta este valor para más histórico |
+| `SCRAPER_MAX_DETAIL_REQUESTS` | `30` | Máximo de artículos sin portada que se enriquecen consultando el detalle |
+| `SCRAPER_DETAIL_CONCURRENCY` | `4` | Consultas de detalle simultáneas para completar portadas faltantes |
+
+> **Nota:** `VITE_API_URL` en `app/` define la URL de la API para producción. Si no se define, la app la deduce del hostname (funciona en móvil usando la IP local de la red).
 
 ---
 

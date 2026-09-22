@@ -1,5 +1,28 @@
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import pool from '../config/db.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-prod';
+
+export function issueToken(user) {
+  return jwt.sign(
+    { id: user.id, email: user.email, rol: user.rol },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+}
+
+export function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
+  const token = header && header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
+  try {
+    req.user = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Token inválido o expirado' });
+  }
+}
 
 export async function authenticateUser(email, password) {
   const conn = await pool.getConnection();
