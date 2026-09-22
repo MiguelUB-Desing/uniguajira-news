@@ -62,21 +62,28 @@ app.get('/api/health', async (_, res) => {
 
 app.get('/api/diag', async (_, res) => {
   const axios = (await import('axios')).default;
-  const targets = [
-    'https://uniguajira.edu.co/wp-json/wp/v2/posts?per_page=1',
-    'https://uniguajira.edu.co/feed/',
-    'https://www.uniguajira.edu.co/wp-json/wp/v2/posts?per_page=1',
+  const url = 'https://uniguajira.edu.co/wp-json/wp/v2/posts?per_page=1';
+  const attempts = [
+    { name: 'news-ua', headers: { 'User-Agent': 'UniGuajira-News/1.0 (+https://uniguajira.edu.co)' } },
+    { name: 'browser-ua', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36', Accept: 'application/json, text/plain, */*', 'Accept-Language': 'es-CO,es;q=0.9,en;q=0.8', Referer: 'https://uniguajira.edu.co/' } },
+    { name: 'curl-ua', headers: { 'User-Agent': 'curl/8.5.0' } },
   ];
   const results = {};
-  for (const url of targets) {
+  for (const a of attempts) {
     try {
-      const r = await axios.get(url, { timeout: 15000, maxRedirects: 5, validateStatus: () => true });
-      results[url] = { status: r.status, type: typeof r.data, len: typeof r.data === 'string' ? r.data.length : Array.isArray(r.data) ? r.data.length : 'obj' };
+      const r = await axios.get(url, { timeout: 15000, maxRedirects: 5, validateStatus: () => true, headers: a.headers });
+      results[a.name] = {
+        status: r.status,
+        type: Array.isArray(r.data) ? 'array' : typeof r.data,
+        len: Array.isArray(r.data) ? r.data.length : typeof r.data === 'string' ? r.data.length : 'obj',
+        snippet: typeof r.data === 'string' ? r.data.slice(0, 200) : null,
+        cf: r.headers['cf-ray'] || null,
+      };
     } catch (e) {
-      results[url] = { error: e.message, code: e.code };
+      results[a.name] = { error: e.message, code: e.code };
     }
   }
-  res.json({ node: process.version, env: { maxPages: process.env.SCRAPER_MAX_PAGES, perPage: process.env.SCRAPER_POSTS_PER_PAGE }, results });
+  res.json({ node: process.version, results });
 });
 
 if (isProd) {
