@@ -88,44 +88,44 @@ https://tudominio.com/api/health
 
 ---
 
-### Opción 2: Despliegue gratis (Vercel + Render + Aiven)
+### Opción 2: Despliegue gratis (ya configurado en este repo)
 
-Límites reales 2026: Vercel Hobby 100 GB/mes sin tarjeta · Render Free 512 MB / 750 hrs (duerme 15 min) · Aiven MySQL Free 1 GB.
+| Capa | Servicio | URL / notas |
+|------|----------|-------------|
+| Frontend | **Vercel** (pendiente en tu cuenta) | Root Directory: `app` · env `VITE_API_URL` |
+| Backend | **Render** | `https://uniguajira-news.onrender.com` (activo) |
+| BD | **Aiven MySQL Free** | 1 GB · solo desde tu máquina o Render |
+| Scraper | **Local** (`npm run sync`) | Cloudflare bloquea el scraping desde Render (403) |
 
-#### 1. Base de datos (Aiven)
-1. Cuenta gratis en https://aiven.io → **Create database** → **MySQL** plan **Free**.
-2. Copia el `DATABASE_URL` (formato `mysql://user:pass@host:port/dbname?ssl=true`).
-3. Importa el esquema:
+Límites: Vercel Hobby 100 GB/mes sin tarjeta · Render Free 512 MB / 750 hrs (duerme 15 min) · Aiven Free 1 GB.
+
+#### Backend (Render) — ya desplegado
+- Repo GitHub conectado, Root Directory `server`, start `npm start`, plan Free.
+- Env vars: `NODE_ENV=production`, `DATABASE_URL` (Aiven), `JWT_SECRET`, `CORS_ORIGIN=*`, `PORT=10000`.
+- Health: `https://uniguajira-news.onrender.com/api/health`
+
+#### BD (Aiven) — ya creada
+- Importar esquema: `mysql ... < database/schema.sql`
+- Refresh de noticias **desde tu PC**:
 ```bash
-mysql --host=HOST --port=PORT --user=USER --password=PASS uniguajira_news < database/schema.sql
+cd server
+# DATABASE_URL en server/.env (NO se sube a git) o en el entorno
+npm run sync
 ```
 
-#### 2. Backend API (Render)
-1. Cuenta gratis en https://render.com → **New +** → **Web Service** → conecta GitHub `MiguelUB-Desing/uniguajira-news`.
-2. Ajustes:
-   - **Name**: `uniguajira-news-api`
-   - **Root Directory**: `server`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Instance Type**: Free
-3. **Environment**:
-   - `NODE_ENV=production`
-   - `DATABASE_URL=` (el de Aiven)
-   - `JWT_SECRET=` (uno aleatorio, o déjalo generar)
-   - `CORS_ORIGIN=` tu URL de Vercel (ej. `https://uniguajira-news.vercel.app`)
-4. Deploy → anota la URL tipo `https://uniguajira-news-api.onrender.com`.
+#### Frontend (Vercel) — pasos cuando tengas la cuenta
+1. https://vercel.com → **Add New…** → **Project** → importa `MiguelUB-Desing/uniguajira-news`.
+2. **Root Directory**: `app` (Import Settings).
+3. **Environment Variables**:
+   - `VITE_API_URL` = `https://uniguajira-news.onrender.com/api`
+4. **Deploy**.
+5. En Render, `CORS_ORIGIN` puedes poner la URL de Vercel (ej. `https://uniguajira-news.vercel.app`) o dejar `*`.
+6. `app/vercel.json` ya proxea `/api/*` → Render (alternativa a `VITE_API_URL`).
 
-#### 3. Frontend (Vercel)
-1. Cuenta gratis en https://vercel.com → **Add New…** → **Project** → importa el mismo repo.
-2. **Root Directory**: `app`
-3. **Environment Variable** (opcional, si quieres forzar la API):
-   - `VITE_API_URL=https://uniguajira-news-api.onrender.com/api`
-4. Deploy.
-5. Si aún no tienes la URL de Render, edita después `app/vercel.json` (`rewrites.destination`) y redeploya — o usa `VITE_API_URL` (tiene prioridad).
-
-#### 4. Verificar
-- `https://tu-app.vercel.app/api/health` (si usas rewrite) o la URL de Render `/api/health`
-- Login demo se crea con **Registro** en la UI (no hay seed de admin en la nube)
+#### Verificar
+- `https://tu-app.vercel.app/` → noticias
+- `https://tu-app.vercel.app/api/health` (rewrite) o la URL de Render
+- Registro/login desde la UI (no hay seed de admin en la nube)
 
 ---
 

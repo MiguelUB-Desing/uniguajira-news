@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: uniguajira-news-api
+    name: uniguajira-news
     runtime: node
     rootDir: server
     buildCommand: npm install

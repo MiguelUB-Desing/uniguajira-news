@@ -6,7 +6,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://uniguajira-news-api.onrender.com/api/:path*"
+      "destination": "https://uniguajira-news.onrender.com/api/:path*"
     }
   ]
 }
