@@ -88,23 +88,44 @@ https://tudominio.com/api/health
 
 ---
 
-### Opción 2: Servicio Cloud (Render / Railway)
+### Opción 2: Despliegue gratis (Vercel + Render + Aiven)
 
-#### Render.com (gratuito)
-1. Crea cuenta en https://render.com
-2. Conecta tu repo de GitHub
-3. Crea un **Web Service**:
+Límites reales 2026: Vercel Hobby 100 GB/mes sin tarjeta · Render Free 512 MB / 750 hrs (duerme 15 min) · Aiven MySQL Free 1 GB.
+
+#### 1. Base de datos (Aiven)
+1. Cuenta gratis en https://aiven.io → **Create database** → **MySQL** plan **Free**.
+2. Copia el `DATABASE_URL` (formato `mysql://user:pass@host:port/dbname?ssl=true`).
+3. Importa el esquema:
+```bash
+mysql --host=HOST --port=PORT --user=USER --password=PASS uniguajira_news < database/schema.sql
+```
+
+#### 2. Backend API (Render)
+1. Cuenta gratis en https://render.com → **New +** → **Web Service** → conecta GitHub `MiguelUB-Desing/uniguajira-news`.
+2. Ajustes:
+   - **Name**: `uniguajira-news-api`
    - **Root Directory**: `server`
    - **Build Command**: `npm install`
-   - **Start Command**: `node src/index.js`
-   - **Environment Variables**:
-     - `NODE_ENV=production`
-     - `DB_HOST=host_de_mariadb_en_la_nube`
-     - `DB_PASSWORD=...`
-4. Crea un **Static Site** para el frontend:
-   - **Root Directory**: `app`
-   - **Build Command**: `npm install && npm run build`
-   - **Publish Directory**: `dist`
+   - **Start Command**: `npm start`
+   - **Instance Type**: Free
+3. **Environment**:
+   - `NODE_ENV=production`
+   - `DATABASE_URL=` (el de Aiven)
+   - `JWT_SECRET=` (uno aleatorio, o déjalo generar)
+   - `CORS_ORIGIN=` tu URL de Vercel (ej. `https://uniguajira-news.vercel.app`)
+4. Deploy → anota la URL tipo `https://uniguajira-news-api.onrender.com`.
+
+#### 3. Frontend (Vercel)
+1. Cuenta gratis en https://vercel.com → **Add New…** → **Project** → importa el mismo repo.
+2. **Root Directory**: `app`
+3. **Environment Variable** (opcional, si quieres forzar la API):
+   - `VITE_API_URL=https://uniguajira-news-api.onrender.com/api`
+4. Deploy.
+5. Si aún no tienes la URL de Render, edita después `app/vercel.json` (`rewrites.destination`) y redeploya — o usa `VITE_API_URL` (tiene prioridad).
+
+#### 4. Verificar
+- `https://tu-app.vercel.app/api/health` (si usas rewrite) o la URL de Render `/api/health`
+- Login demo se crea con **Registro** en la UI (no hay seed de admin en la nube)
 
 ---
 

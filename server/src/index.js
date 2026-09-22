@@ -31,8 +31,14 @@ const apiLimiter = rateLimit({
   message: { error: 'Límite de peticiones alcanzado. Intenta más tarde.' },
 });
 
+const corsOrigins = (process.env.CORS_ORIGIN || '*')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+const corsOrigin = corsOrigins.length === 1 ? corsOrigins[0] : corsOrigins;
+
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization'] }));
+app.use(cors({ origin: corsOrigin, methods: ['GET', 'POST'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json({ limit: '1mb' }));
 
 app.use('/api', apiLimiter);
