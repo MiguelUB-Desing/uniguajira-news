@@ -9,13 +9,14 @@ async function refreshCache() {
   try {
     const news = await scrapeNews();
     if (news.length > 0) {
-      await cacheNews(news);
+      const inserted = await cacheNews(news);
       await updateScrapeTimestamp();
+      return { count: news.length, inserted, error: null };
     }
-    return news.length;
+    return { count: 0, inserted: 0, error: 'scraper devolvió 0 noticias' };
   } catch (err) {
-    console.error('Error en refresco de caché:', err.message);
-    return 0;
+    console.error('Error en refresco de caché:', err);
+    return { count: 0, inserted: 0, error: err.message };
   }
 }
 
@@ -25,8 +26,12 @@ router.get('/', async (req, res) => {
     const news = await getCachedNews(category, parseInt(limit) || 50);
 
     if (news.length === 0) {
-      refreshCache();
-      return res.json({ source: 'empty', data: [], message: 'No hay noticias en caché. El scraper se ejecutará en segundo plano.' });
+      const bg = await refreshCache();
+      if (bg.count > 0) {
+        const refreshed = await getCachedNews(category, parseInt(limit) || 50);
+        return res.json({ source: 'scraped', data: refreshed });
+      }
+      return res.json({ source: 'empty', data: [], message: 'No hay noticias en caché.', error: bg.error });
     }
 
     res.json({ source: 'cache', data: news });
@@ -63,10 +68,10 @@ router.post('/refresh', async (req, res) => {
 
     await incrementRequests(today);
 
-    const count = await refreshCache();
+    const result = await refreshCache();
     const news = await getCachedNews();
 
-    res.json({ source: 'scraped', count, data: news });
+    res.json({ source: 'scraped', count: result.count, inserted: result.inserted, error: result.error, data: news });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
