@@ -60,6 +60,25 @@ app.get('/api/health', async (_, res) => {
   res.status(database === 'ok' ? 200 : 503).json({ status, database, timestamp: new Date().toISOString() });
 });
 
+app.get('/api/diag', async (_, res) => {
+  const axios = (await import('axios')).default;
+  const targets = [
+    'https://uniguajira.edu.co/wp-json/wp/v2/posts?per_page=1',
+    'https://uniguajira.edu.co/feed/',
+    'https://www.uniguajira.edu.co/wp-json/wp/v2/posts?per_page=1',
+  ];
+  const results = {};
+  for (const url of targets) {
+    try {
+      const r = await axios.get(url, { timeout: 15000, maxRedirects: 5, validateStatus: () => true });
+      results[url] = { status: r.status, type: typeof r.data, len: typeof r.data === 'string' ? r.data.length : Array.isArray(r.data) ? r.data.length : 'obj' };
+    } catch (e) {
+      results[url] = { error: e.message, code: e.code };
+    }
+  }
+  res.json({ node: process.version, env: { maxPages: process.env.SCRAPER_MAX_PAGES, perPage: process.env.SCRAPER_POSTS_PER_PAGE }, results });
+});
+
 if (isProd) {
   const distPath = path.join(__dirname, '../../app/dist');
   if (fs.existsSync(distPath)) {
