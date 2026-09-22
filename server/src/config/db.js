@@ -1,18 +1,18 @@
-import mariadb from 'mariadb';
+import mysql from 'mysql2/promise';
 
 function buildConfig() {
   const databaseUrl = process.env.DATABASE_URL;
   if (databaseUrl) {
     const url = new URL(databaseUrl);
-    const ssl = url.searchParams.get('ssl') !== 'false';
+    const useSsl = url.searchParams.get('ssl') !== 'false';
     return {
       host: url.hostname,
       port: parseInt(url.port || '3306', 10),
       user: decodeURIComponent(url.username || 'root'),
       password: decodeURIComponent(url.password || ''),
       database: (url.pathname || '/uniguajira_news').replace(/^\//, '') || 'uniguajira_news',
-      connectionLimit: 5,
-      ssl,
+      ssl: useSsl ? { rejectUnauthorized: false } : false,
+      connectTimeout: 15000,
     };
   }
 
@@ -22,14 +22,40 @@ function buildConfig() {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'uniguajira_news',
-    connectionLimit: 5,
+    connectTimeout: 15000,
   };
 }
 
-const pool = mariadb.createPool(buildConfig());
+const pool = mysql.createPool({
+  ...buildConfig(),
+  waitForConnections: true,
+  connectionLimit: 5,
+  namedPlaceholders: false,
+});
 
-export async function getConnection() {
-  return await pool.getConnection();
+async function wrapConnection(conn) {
+  return {
+    async query(sql, params) {
+      const [rows] = await conn.query(sql, params);
+      return rows;
+    },
+    release() {
+      conn.release();
+    },
+  };
 }
 
-export default pool;
+export async function getConnection() {
+  const conn = await pool.getConnection();
+  return wrapConnection(conn);
+}
+
+const db = {
+  getConnection,
+  async query(sql, params) {
+    const [rows] = await pool.query(sql, params);
+    return rows;
+  },
+};
+
+export default db;
