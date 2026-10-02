@@ -18,8 +18,6 @@ export interface User {
   rol: 'admin' | 'lector';
 }
 
-export type ThemeMode = 'oscuro' | 'atardecer' | 'amanecer' | 'claro';
-
 export interface NewsResponse {
   source: string;
   data: NewsItem[];

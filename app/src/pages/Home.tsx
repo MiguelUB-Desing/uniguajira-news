@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import NewsFeed from '../components/News/NewsFeed';
 import { fetchNews, refreshNews } from '../services/api';
-import type { NewsItem } from '../types';
 import Layout from '../components/Layout/Layout';
+import type { NewsItem } from '../types';
 
 export default function Home() {
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -17,8 +17,8 @@ export default function Home() {
     try {
       const data = await fetchNews(category);
       setNews(data);
-    } catch (err) {
-      setError('Error al cargar noticias. Verifica la conexión con el servidor.');
+    } catch {
+      setError('No pudimos cargar las noticias. Revisa tu conexión e intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -30,8 +30,8 @@ export default function Home() {
     try {
       const data = await refreshNews();
       setNews(data);
-    } catch (err) {
-      setError('Error al actualizar noticias.');
+    } catch {
+      setError('No se pudieron actualizar las noticias. Intenta más tarde.');
     } finally {
       setLoading(false);
     }

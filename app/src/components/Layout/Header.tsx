@@ -1,13 +1,4 @@
-import { Menu, Sun, Moon, Search } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
-import type { ThemeMode } from '../../types';
-
-const themeIcons: Record<ThemeMode, typeof Sun> = {
-  oscuro: Moon,
-  atardecer: Moon,
-  amanecer: Sun,
-  claro: Sun,
-};
+import { Menu, Search, Newspaper } from 'lucide-react';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -16,52 +7,61 @@ interface HeaderProps {
 }
 
 export default function Header({ onToggleSidebar, searchQuery, onSearchChange }: HeaderProps) {
-  const { theme, cycleTheme } = useTheme();
-  const ThemeIcon = themeIcons[theme];
-
   return (
-    <header className="sticky top-0 z-30 backdrop-blur-md bg-inherit border-b" style={{ borderColor: 'inherit' }}>
-      <div className="flex items-center gap-3 px-4 h-14">
-        <button onClick={onToggleSidebar} className="lg:hidden p-2 rounded-lg hover:bg-black/10">
-          <Menu size={22} />
+    <header className="sticky top-0 z-30 glass border-x-0 border-t-0 rounded-none">
+      <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
+        <button
+          type="button"
+          onClick={onToggleSidebar}
+          aria-label="Abrir categorías"
+          className="rounded-xl p-2.5 text-ink transition-colors hover:bg-accent-soft lg:hidden"
+        >
+          <Menu size={20} aria-hidden="true" />
         </button>
 
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <img src="/vite.svg" alt="UniGuajira" className="w-7 h-7 hidden sm:block" />
-          <h1 className="font-bold text-sm sm:text-base truncate">
-            UniGuajira News
-          </h1>
-        </div>
+        <a href="/" className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent text-white shadow-sm shadow-accent/30">
+            <Newspaper size={18} aria-hidden="true" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate font-display text-lg font-semibold leading-none tracking-tight text-ink">
+              UniGuajira News
+            </span>
+            <span className="mt-0.5 hidden text-[11px] font-medium uppercase tracking-[0.14em] text-accent sm:block">
+              Universidad de La Guajira
+            </span>
+          </span>
+        </a>
 
-        <div className="relative flex-1 max-w-md mx-2 hidden sm:block">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+        <div className="relative ml-auto hidden w-full max-w-md sm:block">
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
+          />
           <input
-            type="text"
-            placeholder="Buscar noticias..."
+            type="search"
+            placeholder="Buscar noticias…"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/10 border border-transparent focus:border-blue-500 outline-none transition-colors"
+            className="w-full rounded-full border border-line bg-white/70 py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-ink-muted/80 transition-all outline-none focus:border-accent-bright focus:bg-white focus:ring-2 focus:ring-accent-mid"
           />
         </div>
-
-        <button
-          onClick={cycleTheme}
-          className="p-2 rounded-lg hover:bg-black/10 transition-colors"
-          title={`Tema: ${theme}`}
-        >
-          <ThemeIcon size={20} />
-        </button>
       </div>
 
-      <div className="sm:hidden px-4 pb-3">
+      <div className="px-4 pb-3 sm:hidden">
         <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 opacity-50" />
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted"
+          />
           <input
-            type="text"
-            placeholder="Buscar noticias..."
+            type="search"
+            placeholder="Buscar noticias…"
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm bg-black/10 dark:bg-white/10 border border-transparent focus:border-blue-500 outline-none transition-colors"
+            className="w-full rounded-full border border-line bg-white/70 py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-ink-muted/80 outline-none focus:border-accent-bright focus:ring-2 focus:ring-accent-mid"
           />
         </div>
       </div>

@@ -1,1 +1,99 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Roboto", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Newsreader", "Iowan Old Style", Georgia, serif;
+
+  --color-canvas: #fffaf5;
+  --color-surface: #ffffff;
+  --color-ink: #1c1917;
+  --color-ink-muted: #57534e;
+
+  --color-accent: #c2410c;
+  --color-accent-hover: #9a3412;
+  --color-accent-soft: #ffedd5;
+  --color-accent-mid: #fed7aa;
+  --color-accent-bright: #fb923c;
+
+  --color-glass: rgb(255 255 255 / 0.58);
+  --color-glass-strong: rgb(255 255 255 / 0.78);
+  --color-glass-border: rgb(255 255 255 / 0.72);
+  --color-line: rgb(254 215 170 / 0.65);
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-canvas);
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background: var(--color-accent-mid);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-accent-mid);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-accent-bright);
+    background-clip: content-box;
+  }
+}
+
+@utility glass {
+  background-color: var(--color-glass);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+  border: 1px solid var(--color-glass-border);
+  box-shadow:
+    0 1px 2px rgb(124 45 18 / 0.04),
+    0 12px 32px -16px rgb(124 45 18 / 0.18);
+}
+
+@utility glass-strong {
+  background-color: var(--color-glass-strong);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--color-glass-border);
+  box-shadow:
+    0 1px 2px rgb(124 45 18 / 0.05),
+    0 24px 48px -20px rgb(124 45 18 / 0.28);
+}
+
+@utility text-balance-tight {
+  text-wrap: balance;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
