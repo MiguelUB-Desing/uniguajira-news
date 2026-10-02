@@ -5,6 +5,11 @@ import db from '../config/db.js';
 
 const router = Router();
 
+const STALE_MINUTES = Number.parseInt(process.env.NEWS_STALE_MINUTES ?? '30', 10);
+const STALE_MS = (Number.isFinite(STALE_MINUTES) && STALE_MINUTES > 0 ? STALE_MINUTES : 30) * 60_000;
+
+let refreshing = false;
+
 async function refreshCache() {
   try {
     const news = await scrapeNews();
@@ -17,6 +22,29 @@ async function refreshCache() {
   } catch (err) {
     console.error('Error en refresco de caché:', err);
     return { count: 0, inserted: 0, error: err.message };
+  }
+}
+
+/**
+ * Refresca la caché si es vieja (stale-while-revalidate).
+ * No bloquea la respuesta: solo dispara el scraper en segundo plano.
+ */
+export async function ensureFreshCache({ force = false } = {}) {
+  if (refreshing) return null;
+  refreshing = true;
+  try {
+    if (!force) {
+      const control = await getCacheControl();
+      const last = control.last_scrape ? new Date(String(control.last_scrape).replace(' ', 'T')).getTime() : 0;
+      if (last && Date.now() - last < STALE_MS) return null;
+    }
+    console.log(`[auto-refresh] Caché desactualizada; scraping portal (${STALE_MINUTES} min TTL)…`);
+    return await refreshCache();
+  } catch (err) {
+    console.error('[auto-refresh]', err.message);
+    return null;
+  } finally {
+    refreshing = false;
   }
 }
 
@@ -34,6 +62,7 @@ router.get('/', async (req, res) => {
       return res.json({ source: 'empty', data: [], message: 'No hay noticias en caché.', error: bg.error });
     }
 
+    void ensureFreshCache();
     res.json({ source: 'cache', data: news });
   } catch (error) {
     res.status(500).json({ error: error.message });

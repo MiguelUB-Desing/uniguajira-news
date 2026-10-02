@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 /**
- * Scrapa uniguajira.edu.co desde la máquina local (Cloudflare no bloquea aquí)
- * y guarda los resultados en Aiven (u otra BD si DATABASE_URL/DB_* está en el entorno).
+ * Scrapa uniguajira.edu.co desde la máquina local y guarda en Aiven.
+ * DATABASE_URL o AIVEN_DATABASE_URL (server/.env) deben apuntar a Aiven.
  *
- * Uso:
- *   DATABASE_URL='mysql://...' node scripts/sync-aiven.js
- * o con variables DB_HOST/DB_USER/...
+ * Uso: npm run sync
  */
 import 'dotenv/config';
-import { scrapeNews } from '../src/scraper.js';
-import db from '../src/config/db.js';
 
-if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
-  console.error('Define DATABASE_URL (o DB_HOST) en el entorno o server/.env');
+if (!process.env.DATABASE_URL && process.env.AIVEN_DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.AIVEN_DATABASE_URL;
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error('Define DATABASE_URL o AIVEN_DATABASE_URL en server/.env');
   process.exit(1);
 }
+
+const { scrapeNews } = await import('../src/scraper.js');
+const { default: db } = await import('../src/config/db.js');
 
 const news = await scrapeNews();
 if (news.length === 0) {

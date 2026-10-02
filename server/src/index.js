@@ -7,7 +7,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import pool from './config/db.js';
-import newsRoutes from './routes/news.js';
+import newsRoutes, { ensureFreshCache } from './routes/news.js';
 import authRoutes from './routes/auth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -101,4 +101,11 @@ if (isProd) {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor proxy corriendo en puerto ${PORT} [${isProd ? 'PRODUCCIÓN' : 'DESARROLLO'}]`);
+  // Auto-refresh: revisa la edad de la caché cada 5 min (TTL por NEWS_STALE_MINUTES)
+  setInterval(() => {
+    void ensureFreshCache();
+  }, 5 * 60_000);
+  setTimeout(() => {
+    void ensureFreshCache();
+  }, 15_000);
 });
