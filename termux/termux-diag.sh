@@ -67,7 +67,7 @@ if [[ -f "$AIVEN_FILE" ]]; then
       fail "URL con placeholder o base incorrecta (debe ser /uniguajira_news)"
       AIVEN_URL=""
     else
-      DBNAME=$(printf '%s' "${AIVEN_URL#*/}" | sed 's/?.*//')
+      DBNAME="$(printf '%s' "$AIVEN_URL" | sed -E 's#^[^:]+://[^@]+@[^/]+/##; s#\?.*##')"
       if [[ "$DBNAME" == "uniguajira_news" ]]; then
         pass "base de datos: uniguajira_news"
       else
@@ -146,36 +146,36 @@ fi
 
 # ---------- 6. Render ----------
 section "6. Render (backend web)"
-CODE=$(curl -s -o /tmp/render-body.txt -w '%{http_code}' --max-time 25 "$RENDER_URL" || echo 000)
-if [[ "$CODE" == "200" ]]; then
-  pass "Render vivo (200): $(head -c 120 /tmp/render-body.txt 2>/dev/null)"
-elif [[ "$CODE" == "503" || "$CODE" == "502" ]]; then
-  warn "Render respondió $CODE (despertando, reintenta en 30s)"
-else
-  fail "Render no responde (HTTP $CODE)"
-fi
+CODE=$(curl -sL -o /tmp/render-body.txt -w '%{http_code}' --max-time 25 "$RENDER_URL" || true)
+[[ -z "$CODE" || "$CODE" == "000" ]] && CODE=$(printf '%s' "$CODE" | tr -dc '0-9')
+case "$CODE" in
+  200)    pass "Render vivo (200): $(head -c 120 /tmp/render-body.txt 2>/dev/null)" ;;
+  502|503) warn "Render respondió $CODE (despertando, reintenta en 30s)" ;;
+  *)      fail "Render no responde (HTTP '$CODE')" ;;
+esac
 
 # ---------- 7. Portal (scraper) ----------
 section "7. Portal uniguajira.edu.co (origen del scrapeo)"
-HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://www.uniguajira.edu.co/" || echo 000)
-if [[ "$HTTP_CODE" == "200" ]]; then
-  pass "portal accesible desde el teléfono (200)"
-elif [[ "$HTTP_CODE" == "403" || "$HTTP_CODE" == "451" ]]; then
-  warn "portal bloquea esta red (HTTP $HTTP_CODE) — el sync fallará"
-else
-  fail "portal no accesible (HTTP $HTTP_CODE)"
-fi
+HTTP_CODE=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 20 "https://www.uniguajira.edu.co/" || true)
+case "$HTTP_CODE" in
+  200|301|302) pass "portal accesible desde el teléfono (HTTP $HTTP_CODE)" ;;
+  403|451)     warn "portal bloquea esta red (HTTP $HTTP_CODE) — el sync fallará" ;;
+  *)           fail "portal no accesible (HTTP '$HTTP_CODE')" ;;
+esac
 
 # ---------- 8. Logs recientes ----------
 section "8. Logs recientes"
 if [[ -f "$LOG_DIR/sync.log" ]]; then
-  LAST=$(grep -c 'Scraper finalizado\|Access denied\|Error' "$LOG_DIR/sync.log" 2>/dev/null || echo 0)
   echo "  últimas 8 líneas de sync.log:"
   tail -8 "$LOG_DIR/sync.log" | sed 's/^/    /'
-  if grep -q 'Access denied' "$LOG_DIR/sync.log"; then
-    fail "sync.log contiene 'Access denied' (contraseña)"
-  elif grep -q 'Scraper finalizado' "$LOG_DIR/sync.log"; then
-    pass "sync.log muestra scrapes exitosos"
+  # solo el ÚLTIMO resultado (lo viejo 'Access denied' ya no cuenta)
+  LAST_RESULT=$(grep -E 'Scraper finalizado|OK: .*guardadas|Access denied|Error:' "$LOG_DIR/sync.log" | tail -1)
+  if [[ "$LAST_RESULT" == *"Access denied"* || "$LAST_RESULT" == *"Error"* ]]; then
+    fail "último sync falló: $LAST_RESULT"
+  elif [[ -n "$LAST_RESULT" ]]; then
+    pass "último sync: $LAST_RESULT"
+  else
+    warn "sin resultados de sync aún"
   fi
 else
   warn "sin sync.log todavía"
