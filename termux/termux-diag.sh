@@ -116,13 +116,23 @@ fi
 section "5. Conexión a Aiven (ping SELECT 1)"
 if [[ -n "$AIVEN_URL" && -d "$SERVER_DIR/node_modules/mysql2" ]]; then
   PING_OUT=$(cd "$SERVER_DIR" && AIVEN_DATABASE_URL="$AIVEN_URL" node --input-type=module -e "
-    const url = process.env.AIVEN_DATABASE_URL;
-    import('mysql2/promise').then(async ({default: mysql}) => {
+    const raw = process.env.AIVEN_DATABASE_URL || '';
+    const u = new URL(raw);
+    const cfg = {
+      host: u.hostname,
+      port: parseInt(u.port || '3306', 10),
+      user: decodeURIComponent(u.username || ''),
+      password: decodeURIComponent(u.password || ''),
+      database: (u.pathname || '/').replace(/^\//, ''),
+      ssl: u.searchParams.get('ssl') !== 'false' ? { rejectUnauthorized: false } : false,
+      connectTimeout: 15000,
+    };
+    import('mysql2/promise').then(async ({ default: mysql }) => {
       try {
-        const c = await mysql.createConnection(url, {ssl:{rejectUnauthorized:false}, connectTimeout:15000});
+        const c = await mysql.createConnection(cfg);
         const [r] = await c.query('SELECT COUNT(*) n FROM noticias_cache');
-        const [u] = await c.query('SELECT COUNT(*) n FROM usuarios');
-        console.log('OK noticias_cache=' + r[0].n + ' usuarios=' + u[0].n);
+        const [us] = await c.query('SELECT COUNT(*) n FROM usuarios');
+        console.log('OK noticias_cache=' + r[0].n + ' usuarios=' + us[0].n);
         await c.end();
       } catch(e){ console.log('ERR ' + e.message); }
     });

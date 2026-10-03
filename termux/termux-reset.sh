@@ -130,20 +130,29 @@ sync_once() {
 
 ping_once() {
   cd "$APP_DIR/server"
-  node --input-type=module -e "
-    import mysql from 'mysql2/promise';
-    try {
-      const c = await mysql.createConnection({
-        connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false },
-        connectTimeout: 10000,
-      });
-      await c.query('SELECT 1');
-      await c.end();
-      console.log('aiven-ok');
-    } catch (e) {
-      console.log('aiven-fail', e.message);
-    }
+  AIVEN_DATABASE_URL="$AIVEN_DATABASE_URL" node --input-type=module -e "
+    const raw = process.env.AIVEN_DATABASE_URL || '';
+    if (!raw.startsWith('mysql://')) { console.log('aiven-fail URL-vacia'); process.exit(0); }
+    const u = new URL(raw);
+    const cfg = {
+      host: u.hostname,
+      port: parseInt(u.port || '3306', 10),
+      user: decodeURIComponent(u.username || ''),
+      password: decodeURIComponent(u.password || ''),
+      database: (u.pathname || '/').replace(/^\//, ''),
+      ssl: u.searchParams.get('ssl') !== 'false' ? { rejectUnauthorized: false } : false,
+      connectTimeout: 15000,
+    };
+    import('mysql2/promise').then(async ({ default: mysql }) => {
+      try {
+        const c = await mysql.createConnection(cfg);
+        await c.query('SELECT 1');
+        await c.end();
+        console.log('aiven-ok ' + cfg.host);
+      } catch (e) {
+        console.log('aiven-fail', e.message);
+      }
+    });
   " 2>>"$LOOP_LOG" | sed "s/^/[aiven] /" | tee -a "$LOOP_LOG" >/dev/null
 
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$RENDER_URL" || echo 000)

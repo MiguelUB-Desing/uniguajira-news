@@ -5,9 +5,10 @@
 # El backend web (Render) y el frontend (Vercel) no corren aquí.
 #
 # Uso en Termux:
-#   bash termux-sync.sh          # instala todo la primera vez
-#   bash termux-sync.sh --run    # solo el bucle (tras instalar)
-#   bash termux-sync.sh --once   # un sync inmediato y sale
+#   bash termux-sync.sh           # instala todo la primera vez
+#   bash termux-sync.sh --run     # solo el bucle (tras instalar)
+#   bash termux-sync.sh --once    # un sync inmediato y sale
+#   bash termux-sync.sh --check   # diagnostica URL + ping + sync
 # ============================================================
 set -euo pipefail
 
@@ -21,18 +22,46 @@ SYNC_LOG="${LOG_DIR}/sync.log"
 # ---------- ENV (por si las necesitas copiar a mano) ----------
 # Aiven: se guarda la primera vez en ~/aiven-url.txt (NO va en git)
 AIVEN_FILE="${HOME}/aiven-url.txt"
-if [[ -z "${AIVEN_DATABASE_URL:-}" ]]; then
-  if [[ -f "$AIVEN_FILE" ]]; then
-    AIVEN_DATABASE_URL="$(tr -d '[:space:]' < "$AIVEN_FILE")"
-  else
-    echo "Pega tu DATABASE_URL de Aiven (pestaña mysql de la consola):"
-    echo "  mysql://avnadmin:PASSWORD@HOST:PUERTO/uniguajira_news?ssl=true"
-    read -r AIVEN_DATABASE_URL
-    printf '%s\n' "$AIVEN_DATABASE_URL" > "$AIVEN_FILE"
-    chmod 600 "$AIVEN_FILE"
-    echo "Guardado en $AIVEN_FILE"
+
+valid_url() {
+  # una línea, esquema mysql, usuario@host:puerto/base
+  [[ "$1" =~ ^mysql://[^@[:space:]]+@[^:/[:space:]]+:[0-9]+/[^?\[:space:]] ]]
+}
+
+load_aiven_url() {
+  local url=""
+  if [[ -n "${AIVEN_DATABASE_URL:-}" ]]; then
+    url="${AIVEN_DATABASE_URL}"
+  elif [[ -f "$AIVEN_FILE" ]]; then
+    # todo en una sola línea + sin espacios (arregla pegados con salto)
+    url="$(tr -d '[:space:]' < "$AIVEN_FILE")"
   fi
-fi
+
+  if [[ -z "$url" || "$url" == *"PASSWORD"* ]]; then
+    echo "Pega tu DATABASE_URL de Aiven (pestaña mysql de la consola, botón copiar):"
+    echo "  mysql://avnadmin:CLAVE@HOST:PUERTO/uniguajira_news?ssl=true"
+    IFS= read -r url
+    # por si el pegado trae salto de línea: lo une todo
+    url="$(printf '%s' "$url" | tr -d '[:space:]')"
+    printf '%s\n' "$url" > "$AIVEN_FILE"
+    chmod 600 "$AIVEN_FILE"
+  fi
+
+  if ! valid_url "$url"; then
+    echo "ERROR: la URL de Aiven no es válida."
+    echo "  Recibido: ${url:0:80}…"
+    echo "  Debe ser: mysql://avnadmin:CLAVE@HOST:12622/uniguajira_news?ssl=true"
+    echo "  Corrígela con:  nano $AIVEN_FILE"
+    exit 1
+  fi
+
+  # re-guarda limpia (una línea) por si vino rota
+  printf '%s\n' "$url" > "$AIVEN_FILE"
+  chmod 600 "$AIVEN_FILE"
+  AIVEN_DATABASE_URL="$url"
+}
+
+load_aiven_url
 export AIVEN_DATABASE_URL
 export DATABASE_URL="${AIVEN_DATABASE_URL}"
 
@@ -119,20 +148,36 @@ ping_once() {
   # Ping Aiven: SELECT 1 vía node (mantiene el servicio free activo)
   (
     cd "$SERVER_DIR"
-    node --input-type=module -e "
-      import mysql from 'mysql2/promise';
-      try {
-        const c = await mysql.createConnection({
-          connectionString: process.env.DATABASE_URL,
-          ssl: { rejectUnauthorized: false },
-          connectTimeout: 10000,
-        });
-        await c.query('SELECT 1');
-        await c.end();
-        console.log('aiven-ok');
-      } catch (e) {
-        console.log('aiven-fail', e.message);
+    AIVEN_DATABASE_URL="$AIVEN_DATABASE_URL" node --input-type=module -e "
+      const raw = process.env.AIVEN_DATABASE_URL || '';
+      if (!raw.startsWith('mysql://')) {
+        console.log('aiven-fail URL-vacia-o-invalida');
+        process.exit(0);
       }
+      const u = new URL(raw);
+      const cfg = {
+        host: u.hostname,
+        port: parseInt(u.port || '3306', 10),
+        user: decodeURIComponent(u.username || ''),
+        password: decodeURIComponent(u.password || ''),
+        database: (u.pathname || '/').replace(/^\//, ''),
+        ssl: u.searchParams.get('ssl') !== 'false' ? { rejectUnauthorized: false } : false,
+        connectTimeout: 15000,
+      };
+      if (!cfg.host || !cfg.database) {
+        console.log('aiven-fail URL-incompleta host=' + cfg.host + ' db=' + cfg.database);
+        process.exit(0);
+      }
+      import('mysql2/promise').then(async ({ default: mysql }) => {
+        try {
+          const c = await mysql.createConnection(cfg);
+          await c.query('SELECT 1');
+          await c.end();
+          console.log('aiven-ok ' + cfg.host);
+        } catch (e) {
+          console.log('aiven-fail', e.message);
+        }
+      });
     " 2>>"$LOOP_LOG" | sed "s/^/[aiven] /" | tee -a "$LOOP_LOG"
   ) || true
 
@@ -182,6 +227,13 @@ run_loop() {
 main() {
   ensure_dirs
   case "${1:-}" in
+    --check)
+      # Diagnóstico rápido: URL + ping Aiven + ping Render + un sync
+      log "CHECK: URL=$(printf '%s' "$AIVEN_DATABASE_URL" | sed 's/:[^:@]*@/:***@/')…"
+      ping_once
+      sync_once
+      log "CHECK terminado → mira $LOOP_LOG y $SYNC_LOG"
+      ;;
     --once)
       install_deps
       clone_or_update
