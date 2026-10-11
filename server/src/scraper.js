@@ -145,8 +145,30 @@ function imageFromYoast(post) {
 function mapCategory(value) {
   const category = String(value || '').toLowerCase();
   if (/(evento|seminario|congreso|taller|jornada|conferencia|simposio|webinar)/.test(category)) return 'Eventos';
-  if (/(convocatoria|comunicado|circular|oferta laboral|licitaci|concurso|beca)/.test(category)) return 'Convocatorias y noticias';
+  if (/(convocatoria|convocaroria|comunicado|circular|oferta laboral|licitaci|concurso|beca|noticia)/.test(category)) return 'Convocatorias y noticias';
   return 'General';
+}
+
+async function fetchCategoryNameMap() {
+  const map = new Map();
+  for (let page = 1; page <= 5; page += 1) {
+    const response = await fetchWithRetry(`${SITE_URL}/wp-json/wp/v2/categories`, {
+      params: { per_page: 100, page },
+    });
+    if (!response || !Array.isArray(response.data)) break;
+    for (const cat of response.data) map.set(cat.id, cat.name);
+    const totalPages = Number.parseInt(response.headers['x-wp-totalpages'], 10);
+    if (Number.isFinite(totalPages) && page >= totalPages) break;
+  }
+  return map;
+}
+
+function categoryNamesFromPost(post, categoryNames) {
+  if (!Array.isArray(post.categories) || post.categories.length === 0) return '';
+  return post.categories
+    .map(id => categoryNames.get(id))
+    .filter(Boolean)
+    .join(', ');
 }
 
 function getPostTerms(post) {
@@ -161,7 +183,7 @@ function compactContent(html = '') {
   return $.html().trim().slice(0, 3000);
 }
 
-function normalizeWordPressPost(post) {
+function normalizeWordPressPost(post, categoryNames) {
   const sourceUrl = canonicalUrl(post.link);
   const title = cleanTitle(post.title?.rendered);
   if (!sourceUrl || !isArticleUrl(sourceUrl) || isJunkTitle(title)) return null;
@@ -178,7 +200,7 @@ function normalizeWordPressPost(post) {
     content: compactContent(content),
     source_url: sourceUrl,
     image_url: imageUrl,
-    category: mapCategory(getPostTerms(post)),
+    category: mapCategory(categoryNamesFromPost(post, categoryNames)),
     published_at: formatDateForDatabase(post.date_gmt ? `${post.date_gmt}Z` : post.date),
   };
 }
@@ -187,12 +209,13 @@ async function fetchWordPressPosts() {
   const posts = [];
   for (let page = 1; page <= MAX_WP_PAGES; page += 1) {
     const response = await fetchWithRetry(POSTS_API_URL, {
-      params: {
-        page,
-        per_page: POSTS_PER_PAGE,
-        _embed: 1,
-        _fields: 'link,date,date_gmt,title,excerpt,content,featured_media,_embedded,yoast_head_json,jetpack_featured_media_url',
-      },
+        // _fields con "_embedded" vacía los términos en este WordPress; resolvemos categorías por ID.
+        params: {
+          page,
+          per_page: POSTS_PER_PAGE,
+          _embed: 'wp:featuredmedia',
+          _fields: 'link,date,date_gmt,title,excerpt,content,categories,featured_media,yoast_head_json,jetpack_featured_media_url,_embedded',
+        },
     });
     if (!response || !Array.isArray(response.data)) break;
     posts.push(...response.data);
@@ -353,12 +376,18 @@ function mergeByUrl(items) {
 export async function scrapeNews() {
   console.log(`Iniciando scraper UniGuajira (API WordPress: ${MAX_WP_PAGES} x ${POSTS_PER_PAGE})...`);
 
-  let news = (await fetchWordPressPosts()).map(normalizeWordPressPost).filter(Boolean);
+  const categoryNames = await fetchCategoryNameMap();
+  console.log(`  Categorías WP resueltas: ${categoryNames.size}`);
+
+  let news = (await fetchWordPressPosts())
+    .map(post => normalizeWordPressPost(post, categoryNames))
+    .filter(Boolean);
   console.log(`  API WordPress: ${news.length} noticias válidas`);
 
   // El RSS aporta contenido e imágenes si la API cambia o llega con campos incompletos.
+  // Va primero para que la categoría del WP (por ID) gane sobre la del feed.
   const rssItems = await fetchRssFallback();
-  news = mergeByUrl([...news, ...rssItems]);
+  news = mergeByUrl([...rssItems, ...news]);
   console.log(`  RSS: ${rssItems.length} noticias válidas`);
 
   if (news.length === 0) {
