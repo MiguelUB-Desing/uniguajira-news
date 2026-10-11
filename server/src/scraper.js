@@ -144,12 +144,8 @@ function imageFromYoast(post) {
 
 function mapCategory(value) {
   const category = String(value || '').toLowerCase();
-  if (/(admisi|matr[ií]cula|inscripci|aspirante)/.test(category)) return 'Admisiones';
-  if (/(investigaci|ciencia|laboratorio)/.test(category)) return 'Investigación';
-  if (/(extensi[oó]n|proyecci[oó]n social)/.test(category)) return 'Extensión';
-  if (/(curso|academ|docente|pregrado|posgrado|educaci[oó]n continuada)/.test(category)) return 'Academia';
-  if (/(evento|seminario|congreso|taller)/.test(category)) return 'Eventos';
-  if (/(comunicado|circular|oficial|convocatoria|oferta laboral)/.test(category)) return 'Comunicados';
+  if (/(evento|seminario|congreso|taller|jornada|conferencia|simposio|webinar)/.test(category)) return 'Eventos';
+  if (/(convocatoria|comunicado|circular|oferta laboral|licitaci|concurso|beca)/.test(category)) return 'Convocatorias y noticias';
   return 'General';
 }
 

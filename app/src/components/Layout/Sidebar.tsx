@@ -1,14 +1,9 @@
-import { X, Home, BookOpen, Heart, Beaker, Users, Megaphone, Globe, LayoutGrid } from 'lucide-react';
+import { X, LayoutGrid, CalendarDays, Megaphone } from 'lucide-react';
 
 const categories = [
-  { id: 'all', label: 'Todas', icon: Home },
-  { id: 'Academia', label: 'Academia', icon: BookOpen },
-  { id: 'Bienestar', label: 'Bienestar', icon: Heart },
-  { id: 'Investigación', label: 'Investigación', icon: Beaker },
-  { id: 'Extensión', label: 'Extensión', icon: Users },
-  { id: 'Comunicados', label: 'Comunicados', icon: Megaphone },
-  { id: 'Admisiones', label: 'Admisiones', icon: Globe },
-  { id: 'General', label: 'General', icon: LayoutGrid },
+  { id: 'all', label: 'General', icon: LayoutGrid },
+  { id: 'Eventos', label: 'Eventos', icon: CalendarDays },
+  { id: 'Convocatorias y noticias', label: 'Convocatorias y noticias', icon: Megaphone },
 ];
 
 interface SidebarProps {
