@@ -69,7 +69,7 @@ export DATABASE_URL="${AIVEN_DATABASE_URL}"
 RENDER_URL="${RENDER_URL:-https://uniguajira-news.onrender.com/api/health}"
 
 # Frecuencias (minutos)
-SYNC_EVERY_MIN="${SYNC_EVERY_MIN:-30}"      # scrapeo portal → Aiven
+SYNC_EVERY_MIN="${SYNC_EVERY_MIN:-10}"      # scrapeo portal → Aiven (agresivo: 10)
 PING_EVERY_MIN="${PING_EVERY_MIN:-3}"       # ping Aiven + Render (2–5 ok)
 
 # Otras env disponibles si luego montas todo en el cel
@@ -192,6 +192,7 @@ ping_once() {
 
 sync_once() {
   log "Sync scrapeo → Aiven…"
+  git -C "$APP_DIR" pull --ff-only -q >>"$SYNC_LOG" 2>&1 || true
   cd "$SERVER_DIR"
   if npm run sync >>"$SYNC_LOG" 2>&1; then
     log "Sync OK (ver $SYNC_LOG)"
