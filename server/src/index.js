@@ -53,7 +53,7 @@ app.get('/api/health', async (_, res) => {
   try {
     const conn = await pool.getConnection();
     await conn.query('SELECT 1');
-    const [rows] = await conn.query('SELECT last_scrape, last_scrape_source FROM cache_control WHERE id = 1');
+    const rows = await conn.query('SELECT last_scrape, last_scrape_source FROM cache_control WHERE id = 1');
     cache = rows[0] || {};
     conn.release();
   } catch {
