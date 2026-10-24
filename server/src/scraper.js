@@ -12,8 +12,12 @@ const cheerio = await import('cheerio');
 // SCRAPER_PUBLIC_URL reescribe los enlaces al dominio oficial.
 const SITE_URL = (process.env.SCRAPER_SITE_URL || 'https://uniguajira.edu.co').replace(/\/$/, '');
 const PUBLIC_SITE_URL = (process.env.SCRAPER_PUBLIC_URL || 'https://uniguajira.edu.co').replace(/\/$/, '');
+// Espejo del mismo WordPress sin Cloudflare. Se usa como fallback automático
+// cuando el dominio principal responde 403 desde IPs de datacenter.
+const MIRROR_SITE_URL = (process.env.SCRAPER_MIRROR_URL || 'https://staging6.uniguajira.edu.co').replace(/\/$/, '');
 const SITE_HOST = new URL(SITE_URL).host;
 const PUBLIC_HOST = new URL(PUBLIC_SITE_URL).host;
+const MIRROR_HOST = new URL(MIRROR_SITE_URL).host;
 const POSTS_API_URL = `${SITE_URL}/wp-json/wp/v2/posts`;
 
 const POSTS_PER_PAGE = clampNumber(process.env.SCRAPER_POSTS_PER_PAGE, 50, 1, 100);
@@ -46,7 +50,7 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function fetchWithRetry(url, config = {}) {
+async function fetchAttempt(url, config = {}) {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
     try {
       return await axios.get(url, {
@@ -68,6 +72,32 @@ async function fetchWithRetry(url, config = {}) {
   return null;
 }
 
+// Devuelve la misma ruta en el espejo sin Cloudflare (o null si ya es el espejo).
+function mirrorUrlFor(url) {
+  if (!MIRROR_SITE_URL || MIRROR_HOST === SITE_HOST) return null;
+  try {
+    const parsed = new URL(url);
+    if (parsed.host === MIRROR_HOST) return null;
+    const mirror = new URL(MIRROR_SITE_URL);
+    parsed.protocol = mirror.protocol;
+    parsed.host = mirror.host;
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchWithRetry(url, config = {}) {
+  const response = await fetchAttempt(url, config);
+  if (response) return response;
+
+  const mirror = mirrorUrlFor(url);
+  if (!mirror) return null;
+
+  console.warn(`  ↳ Bloqueado o caído; reintentando en espejo: ${mirror}`);
+  return fetchAttempt(mirror, config);
+}
+
 function canonicalUrl(value, baseUrl = SITE_URL) {
   if (!value) return null;
   try {
@@ -84,7 +114,8 @@ function isArticleUrl(value) {
   const url = canonicalUrl(value);
   if (!url) return false;
   const parsed = new URL(url);
-  if ((parsed.hostname !== SITE_HOST && parsed.hostname !== PUBLIC_HOST) || !parsed.pathname.startsWith('/actualidad/')) return false;
+  const knownHost = [SITE_HOST, PUBLIC_HOST, MIRROR_HOST].includes(parsed.hostname);
+  if (!knownHost || !parsed.pathname.startsWith('/actualidad/')) return false;
   return !/^\/actualidad\/(?:author|tag|page)(?:\/|$)/i.test(parsed.pathname);
 }
 
@@ -93,7 +124,7 @@ function publicUrl(value) {
   if (!value) return value;
   try {
     const url = new URL(value);
-    if (url.host !== SITE_HOST) return value;
+    if (url.host !== SITE_HOST && url.host !== MIRROR_HOST) return value;
     const pub = new URL(PUBLIC_SITE_URL);
     url.protocol = pub.protocol;
     url.host = pub.host;
