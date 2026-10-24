@@ -5,8 +5,8 @@ import db from '../config/db.js';
 
 const router = Router();
 
-const STALE_MINUTES = Number.parseInt(process.env.NEWS_STALE_MINUTES ?? '30', 10);
-const STALE_MS = (Number.isFinite(STALE_MINUTES) && STALE_MINUTES > 0 ? STALE_MINUTES : 30) * 60_000;
+const STALE_MINUTES = Number.parseInt(process.env.NEWS_STALE_MINUTES ?? '15', 10);
+const STALE_MS = (Number.isFinite(STALE_MINUTES) && STALE_MINUTES > 0 ? STALE_MINUTES : 15) * 60_000;
 
 let refreshing = false;
 

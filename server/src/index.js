@@ -116,7 +116,11 @@ app.listen(PORT, '0.0.0.0', () => {
 
   // Keepalive: en Render el servicio gratis se duerme tras 15 min sin tráfico.
   // Un ping a su propia URL pública cuenta como actividad y mantiene el sync vivo.
-  const externalUrl = (process.env.KEEPALIVE_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
+  const externalUrl = (
+    process.env.KEEPALIVE_URL
+    || process.env.RENDER_EXTERNAL_URL
+    || (process.env.RENDER ? 'https://uniguajira-news.onrender.com' : '')
+  ).replace(/\/$/, '');
   if (externalUrl) {
     const keepaliveUrl = externalUrl.endsWith('/api/health') ? externalUrl : `${externalUrl}/api/health`;
     setInterval(async () => {
