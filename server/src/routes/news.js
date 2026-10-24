@@ -15,7 +15,7 @@ async function refreshCache() {
     const news = await scrapeNews();
     if (news.length > 0) {
       const inserted = await cacheNews(news);
-      await updateScrapeTimestamp();
+      await updateScrapeTimestamp('server');
       return { count: news.length, inserted, error: null };
     }
     return { count: 0, inserted: 0, error: 'scraper devolvió 0 noticias' };

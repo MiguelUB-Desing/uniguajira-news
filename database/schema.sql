@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 CREATE TABLE IF NOT EXISTS cache_control (
   id INT AUTO_INCREMENT PRIMARY KEY,
   last_scrape DATETIME,
+  last_scrape_source VARCHAR(20) DEFAULT NULL,
   requests_today INT DEFAULT 0,
   last_request_date DATE,
   max_daily_requests INT DEFAULT 100

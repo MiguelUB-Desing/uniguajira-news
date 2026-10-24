@@ -49,9 +49,12 @@ app.use('/api/auth', authRoutes);
 
 app.get('/api/health', async (_, res) => {
   let database = 'ok';
+  let cache = {};
   try {
     const conn = await pool.getConnection();
     await conn.query('SELECT 1');
+    const [rows] = await conn.query('SELECT last_scrape, last_scrape_source FROM cache_control WHERE id = 1');
+    cache = rows[0] || {};
     conn.release();
   } catch {
     database = 'error';
@@ -61,6 +64,8 @@ app.get('/api/health', async (_, res) => {
     status,
     database,
     commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'local',
+    lastScrape: cache.last_scrape || null,
+    lastScrapeSource: cache.last_scrape_source || null,
     timestamp: new Date().toISOString(),
   });
 });

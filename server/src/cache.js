@@ -63,10 +63,13 @@ export async function getCacheControl() {
   }
 }
 
-export async function updateScrapeTimestamp() {
+export async function updateScrapeTimestamp(source = 'server') {
   const conn = await pool.getConnection();
   try {
-    await conn.query('UPDATE cache_control SET last_scrape = UTC_TIMESTAMP() WHERE id = 1');
+    await conn.query(
+      'UPDATE cache_control SET last_scrape = UTC_TIMESTAMP(), last_scrape_source = ? WHERE id = 1',
+      [source]
+    );
   } finally {
     conn.release();
   }

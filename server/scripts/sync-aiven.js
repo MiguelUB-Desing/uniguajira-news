@@ -48,9 +48,9 @@ for (const item of news) {
   }
 }
 await conn.query(
-  `INSERT INTO cache_control (id, last_scrape, requests_today, last_request_date, max_daily_requests)
-   VALUES (1, UTC_TIMESTAMP(), 0, UTC_DATE(), 100)
-   ON DUPLICATE KEY UPDATE last_scrape = UTC_TIMESTAMP()`
+  `INSERT INTO cache_control (id, last_scrape, last_scrape_source, requests_today, last_request_date, max_daily_requests)
+   VALUES (1, UTC_TIMESTAMP(), 'script', 0, UTC_DATE(), 100)
+   ON DUPLICATE KEY UPDATE last_scrape = UTC_TIMESTAMP(), last_scrape_source = 'script'`
 );
 conn.release();
 
