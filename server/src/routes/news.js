@@ -29,14 +29,23 @@ async function refreshCache() {
  * Refresca la caché si es vieja (stale-while-revalidate).
  * No bloquea la respuesta: solo dispara el scraper en segundo plano.
  */
+function lastScrapeAgeMs(value) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  if (value instanceof Date) return Date.now() - value.getTime();
+  const text = String(value).trim().replace(' ', 'T');
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
+  const parsed = new Date(hasZone ? text : `${text}Z`);
+  return Number.isNaN(parsed.getTime()) ? Number.POSITIVE_INFINITY : Date.now() - parsed.getTime();
+}
+
 export async function ensureFreshCache({ force = false } = {}) {
   if (refreshing) return null;
   refreshing = true;
   try {
     if (!force) {
       const control = await getCacheControl();
-      const last = control.last_scrape ? new Date(String(control.last_scrape).replace(' ', 'T')).getTime() : 0;
-      if (last && Date.now() - last < STALE_MS) return null;
+      const age = lastScrapeAgeMs(control.last_scrape);
+      if (age >= 0 && age < STALE_MS) return null;
     }
     console.log(`[auto-refresh] Caché desactualizada; scraping portal (${STALE_MINUTES} min TTL)…`);
     return await refreshCache();

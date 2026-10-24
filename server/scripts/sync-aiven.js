@@ -39,7 +39,7 @@ for (const item of news) {
          image_url = VALUES(image_url),
          category = VALUES(category),
          published_at = VALUES(published_at),
-         updated_at = NOW()`,
+         updated_at = UTC_TIMESTAMP()`,
       [item.title, item.description, item.content || null, item.source_url, item.image_url, item.category, item.published_at]
     );
     inserted += 1;
@@ -49,8 +49,8 @@ for (const item of news) {
 }
 await conn.query(
   `INSERT INTO cache_control (id, last_scrape, requests_today, last_request_date, max_daily_requests)
-   VALUES (1, NOW(), 0, CURDATE(), 100)
-   ON DUPLICATE KEY UPDATE last_scrape = NOW()`
+   VALUES (1, UTC_TIMESTAMP(), 0, UTC_DATE(), 100)
+   ON DUPLICATE KEY UPDATE last_scrape = UTC_TIMESTAMP()`
 );
 conn.release();
 

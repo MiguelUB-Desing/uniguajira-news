@@ -13,6 +13,8 @@ function buildConfig() {
       database: (url.pathname || '/uniguajira_news').replace(/^\//, '') || 'uniguajira_news',
       ssl: useSsl ? { rejectUnauthorized: false } : false,
       connectTimeout: 15000,
+      // Aiven devuelve DATETIME en su zona local; interpretamos todo como UTC.
+      timezone: 'Z',
     };
   }
 
@@ -23,6 +25,7 @@ function buildConfig() {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'uniguajira_news',
     connectTimeout: 15000,
+    timezone: 'Z',
   };
 }
 
