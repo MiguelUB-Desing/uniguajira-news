@@ -57,7 +57,12 @@ app.get('/api/health', async (_, res) => {
     database = 'error';
   }
   const status = database === 'ok' ? 'ok' : 'degraded';
-  res.status(database === 'ok' ? 200 : 503).json({ status, database, timestamp: new Date().toISOString() });
+  res.status(database === 'ok' ? 200 : 503).json({
+    status,
+    database,
+    commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'local',
+    timestamp: new Date().toISOString(),
+  });
 });
 
 app.get('/api/diag', async (_, res) => {
@@ -108,4 +113,20 @@ app.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     void ensureFreshCache();
   }, 15_000);
+
+  // Keepalive: en Render el servicio gratis se duerme tras 15 min sin tráfico.
+  // Un ping a su propia URL pública cuenta como actividad y mantiene el sync vivo.
+  const externalUrl = (process.env.KEEPALIVE_URL || process.env.RENDER_EXTERNAL_URL || '').replace(/\/$/, '');
+  if (externalUrl) {
+    const keepaliveUrl = externalUrl.endsWith('/api/health') ? externalUrl : `${externalUrl}/api/health`;
+    setInterval(async () => {
+      try {
+        const response = await fetch(keepaliveUrl, { signal: AbortSignal.timeout(30_000) });
+        console.log(`[keepalive] ${keepaliveUrl} → HTTP ${response.status}`);
+      } catch (err) {
+        console.warn(`[keepalive] fallo: ${err.message}`);
+      }
+    }, 10 * 60_000);
+    console.log(`Keepalive activo cada 10 min: ${keepaliveUrl}`);
+  }
 });
