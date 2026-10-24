@@ -1,0 +1,50 @@
+name: Sync noticias
+
+on:
+  schedule:
+    # Cada 15 minutos (GitHub usa UTC). El mínimo permitido es 5 min.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-noticias
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Scrapear portal → Aiven
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: server
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci --omit=dev
+
+      - name: Sync scraper → Aiven
+        env:
+          DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+          AIVEN_DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
+        run: npm run sync
+
+      - name: Ping Render (mantiene despierto el backend)
+        if: always()
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 https://uniguajira-news.onrender.com/api/health || true)
+          echo "Render /api/health → HTTP $code"
