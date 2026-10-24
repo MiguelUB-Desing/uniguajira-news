@@ -37,6 +37,19 @@ jobs:
       - name: Instalar dependencias
         run: npm ci --omit=dev
 
+      - name: Conectar Cloudflare WARP (IP de consumidor)
+        run: |
+          set -e
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq wireguard-tools curl
+          curl -fsSL -o /usr/local/bin/wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64
+          chmod +x /usr/local/bin/wgcf
+          wgcf register --accept-tos
+          wgcf generate
+          sudo wg-quick up ./wgcf-profile.conf
+          echo "── IP de salida ──"
+          curl -s --max-time 15 https://www.cloudflare.com/cdn-cgi/trace | grep -E '^(ip|warp|loc)=' || true
+
       - name: Sync scraper → Aiven
         env:
           DATABASE_URL: ${{ secrets.AIVEN_DATABASE_URL }}
@@ -48,3 +61,7 @@ jobs:
         run: |
           code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 25 https://uniguajira-news.onrender.com/api/health || true)
           echo "Render /api/health → HTTP $code"
+
+      - name: Desconectar WARP
+        if: always()
+        run: sudo wg-quick down ./wgcf-profile.conf || true
