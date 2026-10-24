@@ -8,7 +8,12 @@ const cheerio = await import('cheerio');
 
 // WordPress expone una API pública con la imagen destacada ya vinculada al post.
 // Es mucho más estable que depender exclusivamente de clases HTML del tema.
-const SITE_URL = 'https://uniguajira.edu.co';
+// SCRAPER_SITE_URL permite usar un espejo sin Cloudflare (p. ej. staging6) y
+// SCRAPER_PUBLIC_URL reescribe los enlaces al dominio oficial.
+const SITE_URL = (process.env.SCRAPER_SITE_URL || 'https://uniguajira.edu.co').replace(/\/$/, '');
+const PUBLIC_SITE_URL = (process.env.SCRAPER_PUBLIC_URL || 'https://uniguajira.edu.co').replace(/\/$/, '');
+const SITE_HOST = new URL(SITE_URL).host;
+const PUBLIC_HOST = new URL(PUBLIC_SITE_URL).host;
 const POSTS_API_URL = `${SITE_URL}/wp-json/wp/v2/posts`;
 
 const POSTS_PER_PAGE = clampNumber(process.env.SCRAPER_POSTS_PER_PAGE, 50, 1, 100);
@@ -79,8 +84,23 @@ function isArticleUrl(value) {
   const url = canonicalUrl(value);
   if (!url) return false;
   const parsed = new URL(url);
-  if (parsed.hostname !== 'uniguajira.edu.co' || !parsed.pathname.startsWith('/actualidad/')) return false;
+  if ((parsed.hostname !== SITE_HOST && parsed.hostname !== PUBLIC_HOST) || !parsed.pathname.startsWith('/actualidad/')) return false;
   return !/^\/actualidad\/(?:author|tag|page)(?:\/|$)/i.test(parsed.pathname);
+}
+
+// Reescribe enlaces del espejo de scraping al dominio oficial.
+function publicUrl(value) {
+  if (!value) return value;
+  try {
+    const url = new URL(value);
+    if (url.host !== SITE_HOST) return value;
+    const pub = new URL(PUBLIC_SITE_URL);
+    url.protocol = pub.protocol;
+    url.host = pub.host;
+    return url.toString();
+  } catch {
+    return value;
+  }
 }
 
 function htmlToText(html = '') {
@@ -198,8 +218,8 @@ function normalizeWordPressPost(post, categoryNames) {
     title,
     description,
     content: compactContent(content),
-    source_url: sourceUrl,
-    image_url: imageUrl,
+    source_url: publicUrl(sourceUrl),
+    image_url: publicUrl(imageUrl),
     category: mapCategory(categoryNamesFromPost(post, categoryNames)),
     published_at: formatDateForDatabase(post.date_gmt ? `${post.date_gmt}Z` : post.date),
   };
@@ -241,8 +261,8 @@ function parseRssItems(xml) {
       title,
       description,
       content: compactContent(content),
-      source_url: sourceUrl,
-      image_url: imageFromHtml(content, sourceUrl),
+      source_url: publicUrl(sourceUrl),
+      image_url: publicUrl(imageFromHtml(content, sourceUrl)),
       category: mapCategory(item.children('category').first().text()),
       published_at: formatDateForDatabase(item.children('pubDate').first().text()),
     });
@@ -268,8 +288,8 @@ function parseArchivePage(html, pageUrl) {
       title,
       description,
       content: '',
-      source_url: sourceUrl,
-      image_url: getImageCandidate(imageElement, pageUrl),
+      source_url: publicUrl(sourceUrl),
+      image_url: publicUrl(getImageCandidate(imageElement, pageUrl)),
       category: mapCategory(container.find('.tags-links, .cat-links').text()),
       published_at: formatDateForDatabase(published),
     });
@@ -335,7 +355,7 @@ async function fetchArticleImageFallback(item) {
     || getImageCandidate($('.featured-image img, .wp-post-image, [itemprop="image"] img').first(), item.source_url)
     || imageFromHtml($('.entry-content, article').first().html() || '', item.source_url);
 
-  return { ...item, image_url: imageUrl || null };
+  return { ...item, image_url: publicUrl(imageUrl) || null };
 }
 
 async function mapWithConcurrency(items, limit, mapper) {
