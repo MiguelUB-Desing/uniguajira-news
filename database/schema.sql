@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS cache_control (
   id INT AUTO_INCREMENT PRIMARY KEY,
   last_scrape DATETIME,
   last_scrape_source VARCHAR(20) DEFAULT NULL,
+  awake_month CHAR(7) DEFAULT NULL,
+  awake_minutes INT NOT NULL DEFAULT 0,
   requests_today INT DEFAULT 0,
   last_request_date DATE,
   max_daily_requests INT DEFAULT 100

@@ -15,6 +15,27 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
 
+// Presupuesto de horas despiertas en Render (Free = 750 h/mes).
+// 730 h deja ~20 h de margen para despliegues, solapamientos u otros servicios.
+const AWAKE_BUDGET_MINUTES = Number.parseInt(process.env.RENDER_AWAKE_BUDGET_MINUTES ?? '43800', 10);
+const TICK_MINUTES = 10;
+const COLOMBIA_OFFSET_MS = 5 * 60 * 60_000;
+
+function colombiaDate() {
+  return new Date(Date.now() - COLOMBIA_OFFSET_MS);
+}
+
+function currentMonthKey() {
+  const d = colombiaDate();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+// Sábado (6) y domingo (0) en hora de Colombia: casi no publican noticias.
+function isWeekendInColombia() {
+  const day = colombiaDate().getUTCDay();
+  return day === 0 || day === 6;
+}
+
 const authLimiter = rateLimit({
   windowMs: 60 * 1000,
   limit: 10,
@@ -53,19 +74,24 @@ app.get('/api/health', async (_, res) => {
   try {
     const conn = await pool.getConnection();
     await conn.query('SELECT 1');
-    const rows = await conn.query('SELECT last_scrape, last_scrape_source FROM cache_control WHERE id = 1');
+    const rows = await conn.query('SELECT last_scrape, last_scrape_source, awake_month, awake_minutes FROM cache_control WHERE id = 1');
     cache = rows[0] || {};
     conn.release();
   } catch {
     database = 'error';
   }
   const status = database === 'ok' ? 'ok' : 'degraded';
+  const month = currentMonthKey();
   res.status(database === 'ok' ? 200 : 503).json({
     status,
     database,
     commit: (process.env.RENDER_GIT_COMMIT || '').slice(0, 7) || 'local',
     lastScrape: cache.last_scrape || null,
     lastScrapeSource: cache.last_scrape_source || null,
+    awakeMonth: month,
+    awakeMinutes: cache.awake_month === month ? Number(cache.awake_minutes || 0) : 0,
+    awakeBudgetMinutes: AWAKE_BUDGET_MINUTES,
+    weekendMode: isWeekendInColombia(),
     timestamp: new Date().toISOString(),
   });
 });
@@ -130,12 +156,34 @@ app.listen(PORT, '0.0.0.0', () => {
     const keepaliveUrl = externalUrl.endsWith('/api/health') ? externalUrl : `${externalUrl}/api/health`;
     setInterval(async () => {
       try {
+        // Contabiliza cada 10 min que el proceso está despierto (consumo real).
+        const month = currentMonthKey();
+        await pool.query(
+          `INSERT INTO cache_control (id, awake_month, awake_minutes)
+           VALUES (1, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             awake_minutes = IF(awake_month = VALUES(awake_month), awake_minutes + VALUES(awake_minutes), VALUES(awake_minutes)),
+             awake_month = VALUES(awake_month)`,
+          [month, TICK_MINUTES]
+        );
+        const [control] = await pool.query('SELECT awake_month, awake_minutes FROM cache_control WHERE id = 1');
+        const used = control?.awake_month === month ? Number(control.awake_minutes) : TICK_MINUTES;
+
+        if (used >= AWAKE_BUDGET_MINUTES) {
+          console.warn(`[keepalive] presupuesto mensual alcanzado (${used}/${AWAKE_BUDGET_MINUTES} min); se deja dormir`);
+          return;
+        }
+        if (isWeekendInColombia()) {
+          console.log('[keepalive] fin de semana: sin ping, Render puede dormir');
+          return;
+        }
+
         const response = await fetch(keepaliveUrl, { signal: AbortSignal.timeout(30_000) });
-        console.log(`[keepalive] ${keepaliveUrl} → HTTP ${response.status}`);
+        console.log(`[keepalive] ${keepaliveUrl} → HTTP ${response.status} (${used + TICK_MINUTES}/${AWAKE_BUDGET_MINUTES} min del mes)`);
       } catch (err) {
         console.warn(`[keepalive] fallo: ${err.message}`);
       }
-    }, 10 * 60_000);
-    console.log(`Keepalive activo cada 10 min: ${keepaliveUrl}`);
+    }, TICK_MINUTES * 60_000);
+    console.log(`Keepalive activo cada ${TICK_MINUTES} min: ${keepaliveUrl} (presupuesto ${AWAKE_BUDGET_MINUTES} min/mes)`);
   }
 });
