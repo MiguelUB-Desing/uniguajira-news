@@ -41,12 +41,14 @@ jobs:
         run: |
           set -e
           sudo apt-get update -qq
-          sudo apt-get install -y -qq wireguard-tools curl
+          sudo apt-get install -y -qq wireguard-tools resolvconf curl
           curl -fsSL -o /usr/local/bin/wgcf https://github.com/ViRb3/wgcf/releases/download/v2.2.22/wgcf_2.2.22_linux_amd64
           chmod +x /usr/local/bin/wgcf
           wgcf register --accept-tos
           wgcf generate
-          sudo wg-quick up ./wgcf-profile.conf
+          sudo mkdir -p /etc/wireguard
+          sudo cp wgcf-profile.conf /etc/wireguard/wgcf.conf
+          sudo wg-quick up wgcf
           echo "── IP de salida ──"
           curl -s --max-time 15 https://www.cloudflare.com/cdn-cgi/trace | grep -E '^(ip|warp|loc)=' || true
 
@@ -64,4 +66,4 @@ jobs:
 
       - name: Desconectar WARP
         if: always()
-        run: sudo wg-quick down ./wgcf-profile.conf || true
+        run: sudo wg-quick down wgcf || true
